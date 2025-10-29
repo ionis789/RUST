@@ -1,0 +1,11 @@
+[package]
+name = "laborator_structs"
+version = "0.1.0"
+edition = "2021"
+
+# Dependencies for P3 (JSON)
+[dependencies]
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+
