@@ -1,0 +1,9 @@
+ping
+ping abc
+count a b c
+times
+times
+HELLO world
+bk add rust https://rust-lang.org
+bk search rust
+stop
