@@ -5,7 +5,6 @@ use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::path::Path;
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
 
 // CLI structure - parseaza argumentele din command line
 #[derive(Parser)]
@@ -47,6 +46,8 @@ struct PartInfo {
 
 // --- Helper Functions ---
 
+
+
 fn parse_size(s: &str) -> Result<u64> {
     let s = s.to_lowercase();
     // Verificam ce suffix are
@@ -64,7 +65,6 @@ fn parse_size(s: &str) -> Result<u64> {
     }
 }
 
-// Functie care calculeaza hash-ul SHA256 (amprenta digitala)
 fn calculate_hash(data: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
@@ -74,6 +74,7 @@ fn calculate_hash(data: &[u8]) -> String {
 
 
 fn split_file(filename: &str, size_str: &str) -> Result<()> {
+    
     // 1. Calea catre fisierul de intrare: tests/nume.txt
     let input_path = Path::new("tests").join(filename);
     
