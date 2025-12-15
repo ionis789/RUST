@@ -137,6 +137,55 @@ fn split_file(filename: &str, size_str: &str) -> Result<()> {
 }
 
 
+
+fn unsplit_file(filename: &str) -> Result<()> {
+    // Caut folderul in tests/nume.txt_parts
+    let parts_dir_name = format!("{}_parts", filename);
+    let parts_dir = Path::new("tests").join(&parts_dir_name);
+
+    if !parts_dir.exists() {
+        return Err(anyhow::anyhow!("Folderul de split nu exista: {:?}", parts_dir));
+    }
+
+    // Citesc manifestul
+    let manifest_path = parts_dir.join("manifest.json");
+    println!("Citesc manifestul din {:?}...", manifest_path);
+    
+    let manifest_file = File::open(&manifest_path).context("Manifest lipsa")?;
+    let manifest: FileManifest = serde_json::from_reader(manifest_file)?;
+
+    // Fisierul rezultat va fi tot in tests, cu prefixul 'restored_'
+    let output_filename = format!("restored_{}", manifest.original_filename);
+    let output_path = Path::new("tests").join(&output_filename);
+
+    let mut output_file = File::create(&output_path)?;
+
+    println!("Reasamblez in '{:?}'...", output_path);
+
+    for part in manifest.parts {
+        let part_path = parts_dir.join(&part.filename);
+
+        if !part_path.exists() {
+            return Err(anyhow::anyhow!("Lipseste: {:?}", part_path));
+        }
+
+        let mut part_file = File::open(&part_path)?;
+        let mut buffer = Vec::new();
+        part_file.read_to_end(&mut buffer)?;
+
+        let current_hash = calculate_hash(&buffer);
+        if current_hash != part.hash {
+            return Err(anyhow::anyhow!("Coruptie la {:?}", part_path));
+        }
+
+        output_file.write_all(&buffer)?;
+    }
+
+    println!("Succes! Fisierul a fost refacut: {:?}", output_path);
+    Ok(())
+}
+
+
 fn main() -> Result<()> {
     // Parse arguments
     let cli = Cli::parse();
@@ -144,11 +193,11 @@ fn main() -> Result<()> {
     match cli.command {
         Commands::Split { file, size } => {
             println!("Apelam functia de split pentru: {} cu size: {}", file, size);
-             split_file(&file, &size)?; 
+                split_file(&file, &size)?; 
         }
         Commands::Unsplit { file } => {
             println!("Apelam functia de unsplit pentru: {}", file);
-            // unsplit_file(&file)?; 
+                unsplit_file(&file)?; 
         }
     }
 
