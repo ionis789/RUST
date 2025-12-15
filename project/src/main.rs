@@ -71,41 +71,51 @@ fn calculate_hash(data: &[u8]) -> String {
     // Returnam hash-ul ca string hexazecimal
     hex::encode(hasher.finalize())
 }
-// --- Functia de SPLIT (Taierea) ---
-// Aceasta functie citeste fisierul mare si il imparte in bucati mici
-fn split_file(path_str: &str, size_str: &str) -> Result<()> {
-    // Calculam marimea chunk-ului in bytes 
-    let chunk_size = parse_size(size_str).context("Formatul marimii este invalid")?;
+
+
+fn split_file(filename: &str, size_str: &str) -> Result<()> {
+    // 1. Calea catre fisierul de intrare: tests/nume.txt
+    let input_path = Path::new("tests").join(filename);
     
-    println!("Incepem splituirea fisierului '{}' in bucati de {} bytes...", path_str, chunk_size);
+    if !input_path.exists() {
+        return Err(anyhow::anyhow!("Fisierul '{:?}' nu exista!", input_path));
+    }
+
+    let chunk_size = parse_size(size_str).context("Format invalid la marime")?;
+    println!("Split '{:?}' in bucati de {} bytes...", input_path, chunk_size);
     
-    let path = Path::new(path_str);
-    let mut file = File::open(path).context("Nu am putut deschide fisierul de intrare")?;
+    let mut file = File::open(&input_path).context("Nu pot deschide fisierul")?;
     let total_len = file.metadata()?.len();
+
+    // 2. Folderul de iesire: tests/nume.txt_parts
+    let output_dir_name = format!("{}_parts", filename);
+    let output_dir = Path::new("tests").join(&output_dir_name);
     
-    // Seteam buffer-ul pentru citire
+    if !output_dir.exists() {
+        fs::create_dir(&output_dir)?;
+    }
+
     let mut buffer = vec![0u8; chunk_size as usize];
-    let mut parts_info = Vec::new(); // Lista unde tinem minte ce am creat
+    let mut parts_info = Vec::new();
     let mut part_num = 1;
 
     loop {
-        // Citim o bucata din fisier
         let n = file.read(&mut buffer)?;
-        if n == 0 { break; } 
+        if n == 0 { break; }
 
-        let chunk_data = &buffer[..n]; // Datele efective (poate ultima bucata e mai mica)
-        
+        let chunk_data = &buffer[..n];
         let hash = calculate_hash(chunk_data);
+
+        let part_name = format!("part{:04}.split", part_num);
+        let part_path = output_dir.join(&part_name);
         
-        let part_filename = format!("{}.part{:04}.split", path_str, part_num);
-        
-        let mut part_file = File::create(&part_filename)?;
+        let mut part_file = File::create(&part_path)?;
         part_file.write_all(chunk_data)?;
         
-        println!("Creat: {} ({} bytes)", part_filename, n);
+        println!("Creat: {:?} ({} bytes)", part_path, n);
 
         parts_info.push(PartInfo {
-            filename: part_filename,
+            filename: part_name,
             hash,
         });
 
@@ -113,20 +123,18 @@ fn split_file(path_str: &str, size_str: &str) -> Result<()> {
     }
 
     let manifest = FileManifest {
-        original_filename: path_str.to_string(),
+        original_filename: filename.to_string(),
         total_size: total_len,
         parts: parts_info,
     };
 
-    let manifest_filename = format!("{}.manifest.json", path_str);
-    let manifest_file = File::create(&manifest_filename)?;
-    
+    let manifest_path = output_dir.join("manifest.json");
+    let manifest_file = File::create(&manifest_path)?;
     serde_json::to_writer_pretty(manifest_file, &manifest)?;
 
-    println!("Gata! Manifestul a fost salvat in '{}'.", manifest_filename);
+    println!("Gata! Rezultatul e in folderul: {:?}", output_dir);
     Ok(())
 }
-
 
 
 fn main() -> Result<()> {
